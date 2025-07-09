@@ -126,7 +126,7 @@
                     if (!isFinite(monthlyPayment)) throw new Error("Perhitungan tidak valid.");
                     resultHTML = `<p>Angsuran Bulanan: <span class="value">${formatCurrency(monthlyPayment)}</span></p>`;
                     scheduleData = { show: true, type: 'anuitas', principal, tenorMonths, monthlyPayment, monthlyRate };
-                    formulaHTML = `<h4>Rumus Anuitas (PMT)</h4><pre>P = Pokok Pinjaman\nr = Bunga Bulanan\nn = Tenor\n\nAngsuran = P * (r * (1 + r)^n) / ((1 + r)^n - 1)</pre>`;
+                    formulaHTML = `<h4>Rumus Anuitas Standar (PMT)</h4><pre>P = Pokok Pinjaman\nr = Bunga Bulanan\nn = Tenor\n\nAngsuran = P * (r * (1 + r)^n) / ((1 + r)^n - 1)</pre>`;
                     break;
 
                 case 'fixed_custom':
@@ -136,16 +136,19 @@
 
                     const numerator = principal * annualRate * tenorYears;
                     const denominator = 1 - Math.pow(1 + annualRate, -tenorYears);
-                    const annualPayment = numerator / denominator; // Ini adalah total bayar per tahun
                     
-                    const customMonthlyPayment = annualPayment / 12;
+                    // PERBAIKAN LOGIKA: Hasil rumus ini adalah TOTAL pembayaran
+                    const totalRepayment = numerator / denominator;
+                    
+                    // Angsuran bulanan adalah TOTAL dibagi JUMLAH BULAN
+                    const customMonthlyPayment = totalRepayment / tenorMonths;
 
                     if (!isFinite(customMonthlyPayment)) throw new Error("Perhitungan tidak valid.");
 
                     resultHTML = `<p>Angsuran Bulanan: <span class="value">${formatCurrency(customMonthlyPayment)}</span></p>`;
-                    const monthlyRateForTable = annualRatePercent / 100 / 12; // Tetap pakai rate bulanan untuk tabel
+                    const monthlyRateForTable = annualRatePercent / 100 / 12;
                     scheduleData = { show: true, type: 'anuitas', principal, tenorMonths, monthlyPayment: customMonthlyPayment, monthlyRate: monthlyRateForTable };
-                    formulaHTML = `<h4>Rumus Metode Khusus (Tahunan)</h4><pre>P = Pokok\nr = Bunga Tahunan\nt = Tenor (Tahun)\n\nBayar Tahunan = (P * r * t) / (1 - (1 + r)^-t)\nAngsuran Bulanan = Bayar Tahunan / 12</pre>`;
+                    formulaHTML = `<h4>Rumus Metode Khusus</h4><pre>P = Pokok\nr = Bunga Tahunan\nt = Tenor (Tahun)\n\nTotal Bayar = (P * r * t) / (1 - (1 + r)^-t)\nAngsuran Bulanan = Total Bayar / Tenor (Bulan)</pre>`;
                     break;
 
                 case 'flat':
