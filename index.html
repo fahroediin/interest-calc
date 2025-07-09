@@ -50,6 +50,8 @@
                         </optgroup>
                         <optgroup label="Metode Khusus (Sesuai Contoh)">
                             <option value="fixed_custom">Fixed (Metode Khusus)</option>
+                            <option value="floating_custom">Floating (Metode Khusus)</option>
+                            <option value="capped_custom">Capped (Metode Khusus)</option>
                             <option value="hybrid_custom">Hybrid (Metode Khusus)</option>
                         </optgroup>
                          <optgroup label="Metode Lainnya">
@@ -127,7 +129,7 @@
                     formulaHTML = `<h4>Rumus Anuitas Standar (PMT)</h4><pre>P=Pokok, r=Bunga/Bulan, n=Tenor\nAngsuran = P*(r*(1+r)^n)/((1+r)^n-1)</pre>`;
                     break;
 
-                case 'fixed_custom':
+                case 'fixed_custom': case 'floating_custom': case 'capped_custom':
                     if ([principal, annualRatePercent, tenorMonths].some(isNaN)) throw new Error("Input tidak valid.");
                     const totalRepayment = customFormula(principal, annualRatePercent / 100, tenorMonths / 12);
                     const customMonthlyPayment = totalRepayment / tenorMonths;
@@ -153,7 +155,6 @@
                     formulaHTML = `<h4>Rumus Suku Bunga Efektif (EAR)</h4><pre>r=Bunga Nominal,n=Frekuensi(12)\nEAR=(1+(r/n))^n-1</pre>`;
                     break;
                 
-                // ================== BLOK PERBAIKAN DIMULAI DI SINI ==================
                 case 'hybrid_std':
                 case 'hybrid_custom': // Disatukan dengan hybrid_std
                     const fixedTenor = parseInt(document.getElementById('fixed-tenor').value);
@@ -212,6 +213,28 @@
                         }
                         outstanding -= principalPart;
                         tableHTML += `<tr class="${highlightClass}"><td>${i}</td><td>${formatCurrency(principalPart)}</td><td>${formatCurrency(interestPart)}</td><td>${formatCurrency(currentPayment)}</td><td>${formatCurrency(Math.max(0, outstanding))}</td></tr>`;
+                    }
+                // ### PERBAIKAN LOGIKA TABEL ###
+                } else if (scheduleData.type === 'hybrid_custom_mix') {
+                    for (let i=1; i <= scheduleData.tenorMonths; i++) {
+                        let principalPart, interestPart, installment, highlightClass = '';
+                        if (i <= scheduleData.fixedTenor) {
+                           installment = scheduleData.fixedPrincipalPart + scheduleData.fixedInterestPart;
+                           principalPart = scheduleData.fixedPrincipalPart;
+                           interestPart = scheduleData.fixedInterestPart;
+                           if (i === 1 || i === scheduleData.fixedTenor) highlightClass = 'highlight';
+                        } else {
+                            installment = scheduleData.floatingPayment;
+                            interestPart = outstanding * scheduleData.monthlyFloatingRate;
+                            principalPart = installment - interestPart;
+                            if (i === scheduleData.fixedTenor + 1) highlightClass = 'highlight';
+                        }
+                        if (i === scheduleData.tenorMonths) {
+                            principalPart = outstanding;
+                            installment = principalPart + interestPart;
+                        }
+                        outstanding -= principalPart;
+                        tableHTML += `<tr class="${highlightClass}"><td>${i}</td><td>${formatCurrency(principalPart)}</td><td>${formatCurrency(interestPart)}</td><td>${formatCurrency(installment)}</td><td>${formatCurrency(Math.max(0, outstanding))}</td></tr>`;
                     }
                 } else if (scheduleData.type === 'flat') {
                     const installment = scheduleData.monthlyPrincipalPmt + scheduleData.monthlyInterestPmt;
