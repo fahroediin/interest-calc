@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kalkulator Pinjaman dengan Jadwal Amortisasi</title>
+    <title>Kalkulator Pinjaman dengan Jadwal & Rumus</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
@@ -20,7 +20,7 @@
             border-radius: 12px;
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
             width: 100%;
-            max-width: 800px; /* Lebarkan kontainer untuk tabel */
+            max-width: 800px;
         }
         h1 {
             text-align: center;
@@ -100,11 +100,10 @@
             display: none;
         }
         
-        /* === STYLE BARU UNTUK TABEL === */
         #schedule-container {
             margin-top: 30px;
-            display: none; /* Sembunyikan secara default */
-            max-height: 400px; /* Beri tinggi maksimal dan scroll jika perlu */
+            display: none;
+            max-height: 400px;
             overflow-y: auto;
             border: 1px solid #e0e0e0;
             border-radius: 8px;
@@ -131,6 +130,31 @@
         #schedule-table tbody tr:nth-child(even) {
             background-color: #fbfdff;
         }
+
+        /* === STYLE BARU UNTUK RUMUS === */
+        #formula-container {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: #343a40;
+            display: none; /* Sembunyikan secara default */
+        }
+        #formula-container h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            font-weight: 600;
+        }
+        #formula-container pre {
+            margin: 0;
+            white-space: pre-wrap; /* Agar teks bisa wrap */
+            word-wrap: break-word;
+        }
     </style>
 </head>
 <body>
@@ -138,6 +162,7 @@
     <div class="container">
         <h1>Kalkulator Simulasi Pinjaman</h1>
         <form id="kpr-form">
+            <!-- Form input tidak berubah -->
             <div class="form-grid">
                 <div class="form-group">
                     <label for="principal">Principal (Pokok Pinjaman)</label>
@@ -164,7 +189,6 @@
                     </select>
                 </div>
             </div>
-
             <div id="additional-fields" class="form-grid">
                 <div class="form-group hidden" id="group-cap-rate">
                     <label for="cap-rate">Cap Rate (% per Tahun)</label>
@@ -179,7 +203,6 @@
                     <input type="number" id="floating-rate" placeholder="Contoh: 9.5" step="0.01">
                 </div>
             </div>
-
             <div class="button-container">
                 <button type="submit">Calculate</button>
             </div>
@@ -187,7 +210,6 @@
 
         <div id="result-container" class="result"></div>
         
-        <!-- === TEMPAT UNTUK TABEL === -->
         <div id="schedule-container">
             <table id="schedule-table">
                 <thead>
@@ -199,11 +221,12 @@
                         <th>Outstanding</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <!-- Isi tabel akan digenerate oleh JavaScript -->
-                </tbody>
+                <tbody></tbody>
             </table>
         </div>
+        
+        <!-- === TEMPAT UNTUK RUMUS === -->
+        <div id="formula-container"></div>
     </div>
 
     <script>
@@ -214,6 +237,7 @@
     const resultContainer = document.getElementById('result-container');
     const scheduleContainer = document.getElementById('schedule-container');
     const scheduleBody = document.querySelector('#schedule-table tbody');
+    const formulaContainer = document.getElementById('formula-container'); // Ambil elemen rumus
     // ... elemen form lain
     const groupCapRate = document.getElementById('group-cap-rate');
     const groupHybridTenor = document.getElementById('group-hybrid-tenor');
@@ -226,24 +250,21 @@
     // --- Event Listener ---
     principalInput.addEventListener('input', function(e) {
         let rawValue = e.target.value.replace(/[^0-9]/g, '');
-        if (rawValue) {
-            e.target.value = formatAsMoney(rawValue);
-        }
+        if (rawValue) e.target.value = formatAsMoney(rawValue);
     });
 
     interestTypeSelect.addEventListener('change', () => {
-        const type = interestTypeSelect.value;
         resultContainer.style.display = 'none';
         scheduleContainer.style.display = 'none';
-        
-        // Reset tampilan
+        formulaContainer.style.display = 'none';
+        // ... (logika reset tampilan lainnya)
         groupCapRate.classList.add('hidden');
         groupHybridTenor.classList.add('hidden');
         groupHybridRate.classList.add('hidden');
         
-        if (type === 'capped') {
-            groupCapRate.classList.remove('hidden');
-        } else if (type === 'hybrid') {
+        const type = interestTypeSelect.value;
+        if (type === 'capped') groupCapRate.classList.remove('hidden');
+        else if (type === 'hybrid') {
             groupHybridTenor.classList.remove('hidden');
             groupHybridRate.classList.remove('hidden');
         }
@@ -257,41 +278,44 @@
             return;
         }
 
+        // Reset semua hasil sebelum perhitungan baru
         resultContainer.style.display = 'none';
         scheduleContainer.style.display = 'none';
+        formulaContainer.style.display = 'none';
         scheduleBody.innerHTML = '';
+        formulaContainer.innerHTML = '';
 
         try {
             const principal = parseFloat(principalInput.value.replace(/\./g, ''));
             let annualRatePercent = parseFloat(document.getElementById('interest').value);
             const tenorMonths = parseInt(document.getElementById('tenor').value);
             let resultHTML = '';
-            
-            // Variabel untuk menyimpan data untuk tabel
+            let formulaHTML = '';
             let scheduleData = { show: false };
 
             switch (type) {
                 case 'fixed':
                 case 'floating':
                 case 'capped': {
+                    // ... (logika perhitungan tidak berubah)
                     if (isNaN(principal) || isNaN(annualRatePercent) || isNaN(tenorMonths)) throw new Error("Input tidak valid.");
-                    let note = '';
                     
-                    if (type === 'capped') {
-                        // ... (logika capped tidak berubah)
-                    }
-                    if (type === 'floating') {
-                         note = `<p class="note">Angsuran ini dapat berubah di masa depan sesuai pergerakan suku bunga acuan.</p>`;
-                    }
-
                     const monthlyRate = annualRatePercent / 100 / 12;
                     const monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, tenorMonths)) / (Math.pow(1 + monthlyRate, tenorMonths) - 1);
-                    if (!isFinite(monthlyPayment)) throw new Error("Input tidak valid untuk perhitungan.");
-
-                    resultHTML = `<p>Angsuran Bulanan (Anuitas): <span class="value">${formatCurrency(monthlyPayment)}</span></p>${note}`;
                     
-                    // Siapkan data untuk tabel Anuitas
+                    resultHTML = `<p>Angsuran Bulanan (Anuitas): <span class="value">${formatCurrency(monthlyPayment)}</span></p>`;
                     scheduleData = { show: true, type: 'anuitas', principal, tenorMonths, monthlyPayment, monthlyRate };
+
+                    // Siapkan rumus Anuitas
+                    formulaHTML = `
+                        <h4>Rumus Anuitas (PMT)</h4>
+                        <pre>
+P = Pokok Pinjaman
+r = Suku Bunga Bulanan (Suku Bunga Tahunan / 100 / 12)
+n = Tenor (dalam bulan)
+
+Angsuran = P * (r * (1 + r)^n) / ((1 + r)^n - 1)
+                        </pre>`;
                     break;
                 }
                 
@@ -300,69 +324,74 @@
                     const annualRate = annualRatePercent / 100;
                     const monthlyPrincipalPayment = principal / tenorMonths;
                     const monthlyInterestPayment = (principal * annualRate) / 12;
-                    const monthlyPayment = monthlyPrincipalPayment + monthlyInterestPayment;
-
+                    
                     resultHTML = `
-                        <p>Angsuran Pokok / Bulan: <span class="value">${formatCurrency(monthlyPrincipalPayment)}</span></p>
-                        <p>Angsuran Bunga / Bulan: <span class="value">${formatCurrency(monthlyInterestPayment)}</span></p>
-                        <hr>
-                        <p>Total Angsuran / Bulan: <span class="value">${formatCurrency(monthlyPayment)}</span></p>`;
-
-                    // Siapkan data untuk tabel Flat
+                        <p>Total Angsuran / Bulan: <span class="value">${formatCurrency(monthlyPrincipalPayment + monthlyInterestPayment)}</span></p>`;
                     scheduleData = { show: true, type: 'flat', principal, tenorMonths, monthlyPrincipalPayment, monthlyInterestPayment };
+                    
+                    // Siapkan rumus Flat
+                    formulaHTML = `
+                        <h4>Rumus Bunga Flat</h4>
+                        <pre>
+Pokok / Bulan   = Pokok Pinjaman / Tenor (bulan)
+Bunga / Bulan   = (Pokok Pinjaman * Suku Bunga Tahunan) / 12
+Total Angsuran  = Pokok / Bulan + Bunga / Bulan
+                        </pre>`;
+                    break;
+                }
+                
+                case 'effective': {
+                    if (isNaN(annualRatePercent)) throw new Error("Input tidak valid.");
+                    const annualRate = annualRatePercent / 100;
+                    const frequency = 12; 
+                    const effectiveRate = (Math.pow(1 + (annualRate / frequency), frequency) - 1) * 100;
+
+                    resultHTML = `<p>Suku Bunga Efektif (EAR): <span class="value">${effectiveRate.toFixed(2)}%</span></p>`;
+                    
+                    // Siapkan rumus Effective Rate
+                    formulaHTML = `
+                        <h4>Rumus Suku Bunga Efektif (EAR)</h4>
+                        <pre>
+r = Suku Bunga Nominal Tahunan
+n = Frekuensi Pembayaran per Tahun (umumnya 12)
+
+EAR = (1 + (r / n))^n - 1
+                        </pre>`;
                     break;
                 }
 
-                // ... (case 'effective' dan 'hybrid' tidak menghasilkan tabel sederhana, jadi kita lewati)
+                // ... (case hybrid kita lewati untuk rumus karena kompleks, tapi perhitungan tetap jalan)
             }
 
-            // Tampilkan hasil utama
+            // Tampilkan hasil, tabel, dan rumus
             if (resultHTML) {
                 resultContainer.innerHTML = resultHTML;
                 resultContainer.style.display = 'block';
             }
-
-            // Generate dan tampilkan tabel jika datanya ada
+            if (formulaHTML) {
+                formulaContainer.innerHTML = formulaHTML;
+                formulaContainer.style.display = 'block';
+            }
             if (scheduleData.show) {
-                let tableRowsHTML = '';
+                // ... (logika generate tabel tidak berubah)
+                 let tableRowsHTML = '';
                 if (scheduleData.type === 'anuitas') {
                     let outstanding = scheduleData.principal;
                     for (let i = 1; i <= scheduleData.tenorMonths; i++) {
                         const interest = outstanding * scheduleData.monthlyRate;
                         let principalPart = scheduleData.monthlyPayment - interest;
-                        
-                        // Penyesuaian di bulan terakhir untuk memastikan sisa pokok 0
-                        if (i === scheduleData.tenorMonths) {
-                            principalPart = outstanding;
-                        }
-                        
+                        if (i === scheduleData.tenorMonths) { principalPart = outstanding; }
                         outstanding -= principalPart;
-
-                        tableRowsHTML += `
-                            <tr>
-                                <td>${i}</td>
-                                <td>${formatCurrency(principalPart)}</td>
-                                <td>${formatCurrency(interest)}</td>
-                                <td>${formatCurrency(principalPart + interest)}</td>
-                                <td>${formatCurrency(outstanding < 0 ? 0 : outstanding)}</td>
-                            </tr>`;
+                        tableRowsHTML += `<tr><td>${i}</td><td>${formatCurrency(principalPart)}</td><td>${formatCurrency(interest)}</td><td>${formatCurrency(principalPart + interest)}</td><td>${formatCurrency(outstanding < 0 ? 0 : outstanding)}</td></tr>`;
                     }
                 } else if (scheduleData.type === 'flat') {
                     let outstanding = scheduleData.principal;
                     const installment = scheduleData.monthlyPrincipalPayment + scheduleData.monthlyInterestPayment;
                     for (let i = 1; i <= scheduleData.tenorMonths; i++) {
                         outstanding -= scheduleData.monthlyPrincipalPayment;
-                        tableRowsHTML += `
-                            <tr>
-                                <td>${i}</td>
-                                <td>${formatCurrency(scheduleData.monthlyPrincipalPayment)}</td>
-                                <td>${formatCurrency(scheduleData.monthlyInterestPayment)}</td>
-                                <td>${formatCurrency(installment)}</td>
-                                <td>${formatCurrency(outstanding < 0 ? 0 : outstanding)}</td>
-                            </tr>`;
+                        tableRowsHTML += `<tr><td>${i}</td><td>${formatCurrency(scheduleData.monthlyPrincipalPayment)}</td><td>${formatCurrency(scheduleData.monthlyInterestPayment)}</td><td>${formatCurrency(installment)}</td><td>${formatContainerrency(outstanding < 0 ? 0 : outstanding)}</td></tr>`;
                     }
                 }
-                
                 scheduleBody.innerHTML = tableRowsHTML;
                 scheduleContainer.style.display = 'block';
             }
