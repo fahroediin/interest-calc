@@ -108,7 +108,8 @@
             <!-- Pokok Pinjaman -->
             <div class="form-group" id="group-principal">
                 <label for="principal">Principal (Pokok Pinjaman)</label>
-                <input type="number" id="principal" placeholder="Contoh: 10000000" required>
+                <!-- PERUBAHAN 1: Mengubah type ke "text" dan menambahkan inputmode -->
+                <input type="text" id="principal" inputmode="numeric" placeholder="Contoh: 10.000.000" required>
             </div>
             <!-- Suku Bunga -->
             <div class="form-group" id="group-interest">
@@ -163,6 +164,7 @@
     <script>
     // --- Elemen DOM ---
     const form = document.getElementById('kpr-form');
+    const principalInput = document.getElementById('principal'); // Ambil input principal
     const interestTypeSelect = document.getElementById('interest-type');
     const resultContainer = document.getElementById('result-container');
     const groupPrincipal = document.getElementById('group-principal');
@@ -178,11 +180,23 @@
         }).format(number);
     };
 
+    // --- PERUBAHAN 2: Menambahkan event listener untuk format delimiter ---
+    principalInput.addEventListener('input', function(e) {
+        // 1. Ambil nilai, hapus semua karakter non-digit
+        let rawValue = e.target.value.replace(/[^0-9]/g, '');
+        
+        // 2. Jika ada nilai, format dengan pemisah ribuan
+        if (rawValue) {
+            const formattedValue = new Intl.NumberFormat('id-ID').format(rawValue);
+            e.target.value = formattedValue;
+        }
+    });
+
+
     // --- Mengatur Tampilan Form Berdasarkan Pilihan ---
     interestTypeSelect.addEventListener('change', () => {
         const type = interestTypeSelect.value;
         
-        // Reset semua tampilan
         groupPrincipal.classList.remove('hidden');
         groupInterest.classList.remove('hidden');
         groupTenor.classList.remove('hidden');
@@ -214,19 +228,22 @@
         }
 
         try {
-            const principal = parseFloat(document.getElementById('principal').value);
+            // PERUBAHAN 3: Bersihkan delimiter sebelum melakukan parsing
+            const principalValue = principalInput.value;
+            const principal = parseFloat(principalValue.replace(/\./g, '')); // Hapus titik
+
             let annualRatePercent = parseFloat(document.getElementById('interest').value);
             const tenorMonths = parseInt(document.getElementById('tenor').value);
             let resultHTML = '';
 
             switch (type) {
+                // ... (Logika switch case tidak berubah) ...
                 case 'fixed':
                 case 'floating':
                 case 'capped': {
                     if (isNaN(principal) || isNaN(annualRatePercent) || isNaN(tenorMonths)) throw new Error("Input Pokok, Bunga, dan Tenor harus valid.");
                     let note = '';
                     
-                    // Capped Logic
                     if (type === 'capped') {
                         const capRatePercent = parseFloat(document.getElementById('cap-rate').value);
                         if(isNaN(capRatePercent)) throw new Error('Cap Rate harus diisi.');
@@ -239,9 +256,8 @@
                         note = `<p class="note">Angsuran ini dapat berubah di masa depan sesuai pergerakan suku bunga acuan.</p>`;
                     }
 
-                    // *** INI ADALAH RUMUS PMT STANDAR (ANUITAS) ***
                     const monthlyRate = annualRatePercent / 100 / 12;
-                    if (monthlyRate === 0) { // Menghindari pembagian dengan nol jika bunga 0%
+                    if (monthlyRate === 0) { 
                         monthlyPayment = principal / tenorMonths;
                     } else {
                         monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, tenorMonths)) / (Math.pow(1 + monthlyRate, tenorMonths) - 1);
@@ -279,16 +295,13 @@
                 }
                 
                 case 'hybrid': {
-                    // annualRatePercent disini adalah bunga fixed
                     const fixedTenorMonths = parseInt(document.getElementById('fixed-tenor').value);
                     const floatingRatePercent = parseFloat(document.getElementById('floating-rate').value);
                     if(isNaN(principal) || isNaN(annualRatePercent) || isNaN(tenorMonths) || isNaN(fixedTenorMonths) || isNaN(floatingRatePercent)) throw new Error("Semua input hybrid harus diisi.");
 
-                    // Perhitungan Periode Fixed (Menggunakan Rumus PMT)
                     const monthlyFixedRate = annualRatePercent / 100 / 12;
                     const fixedPayment = principal * (monthlyFixedRate * Math.pow(1 + monthlyFixedRate, tenorMonths)) / (Math.pow(1 + monthlyFixedRate, tenorMonths) - 1);
                     
-                    // Hitung sisa pokok setelah periode fixed
                     let remainingPrincipal = principal;
                     for (let i = 0; i < fixedTenorMonths; i++) {
                         let interestPart = remainingPrincipal * monthlyFixedRate;
@@ -296,7 +309,6 @@
                         remainingPrincipal -= principalPart;
                     }
 
-                    // Perhitungan Periode Floating (Menggunakan Rumus PMT lagi)
                     const remainingMonths = tenorMonths - fixedTenorMonths;
                     const monthlyFloatingRate = floatingRatePercent / 100 / 12;
                     const floatingPayment = remainingPrincipal * (monthlyFloatingRate * Math.pow(1 + monthlyFloatingRate, remainingMonths)) / (Math.pow(1 + monthlyFloatingRate, remainingMonths) - 1);
