@@ -131,7 +131,6 @@
             background-color: #fbfdff;
         }
 
-        /* === STYLE BARU UNTUK RUMUS === */
         #formula-container {
             margin-top: 20px;
             padding: 15px;
@@ -142,7 +141,7 @@
             font-size: 0.9rem;
             line-height: 1.6;
             color: #343a40;
-            display: none; /* Sembunyikan secara default */
+            display: none;
         }
         #formula-container h4 {
             margin-top: 0;
@@ -152,7 +151,7 @@
         }
         #formula-container pre {
             margin: 0;
-            white-space: pre-wrap; /* Agar teks bisa wrap */
+            white-space: pre-wrap;
             word-wrap: break-word;
         }
     </style>
@@ -162,7 +161,6 @@
     <div class="container">
         <h1>Kalkulator Simulasi Pinjaman</h1>
         <form id="kpr-form">
-            <!-- Form input tidak berubah -->
             <div class="form-grid">
                 <div class="form-group">
                     <label for="principal">Principal (Pokok Pinjaman)</label>
@@ -209,7 +207,6 @@
         </form>
 
         <div id="result-container" class="result"></div>
-        
         <div id="schedule-container">
             <table id="schedule-table">
                 <thead>
@@ -224,30 +221,24 @@
                 <tbody></tbody>
             </table>
         </div>
-        
-        <!-- === TEMPAT UNTUK RUMUS === -->
         <div id="formula-container"></div>
     </div>
 
     <script>
-    // --- Elemen DOM ---
     const form = document.getElementById('kpr-form');
     const principalInput = document.getElementById('principal');
     const interestTypeSelect = document.getElementById('interest-type');
     const resultContainer = document.getElementById('result-container');
     const scheduleContainer = document.getElementById('schedule-container');
     const scheduleBody = document.querySelector('#schedule-table tbody');
-    const formulaContainer = document.getElementById('formula-container'); // Ambil elemen rumus
-    // ... elemen form lain
+    const formulaContainer = document.getElementById('formula-container');
     const groupCapRate = document.getElementById('group-cap-rate');
     const groupHybridTenor = document.getElementById('group-hybrid-tenor');
     const groupHybridRate = document.getElementById('group-hybrid-rate');
 
-    // --- Format Helper ---
     const formatAsMoney = (number) => new Intl.NumberFormat('id-ID').format(number);
     const formatCurrency = (number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(number);
 
-    // --- Event Listener ---
     principalInput.addEventListener('input', function(e) {
         let rawValue = e.target.value.replace(/[^0-9]/g, '');
         if (rawValue) e.target.value = formatAsMoney(rawValue);
@@ -257,11 +248,9 @@
         resultContainer.style.display = 'none';
         scheduleContainer.style.display = 'none';
         formulaContainer.style.display = 'none';
-        // ... (logika reset tampilan lainnya)
         groupCapRate.classList.add('hidden');
         groupHybridTenor.classList.add('hidden');
         groupHybridRate.classList.add('hidden');
-        
         const type = interestTypeSelect.value;
         if (type === 'capped') groupCapRate.classList.remove('hidden');
         else if (type === 'hybrid') {
@@ -278,7 +267,6 @@
             return;
         }
 
-        // Reset semua hasil sebelum perhitungan baru
         resultContainer.style.display = 'none';
         scheduleContainer.style.display = 'none';
         formulaContainer.style.display = 'none';
@@ -297,73 +285,37 @@
                 case 'fixed':
                 case 'floating':
                 case 'capped': {
-                    // ... (logika perhitungan tidak berubah)
                     if (isNaN(principal) || isNaN(annualRatePercent) || isNaN(tenorMonths)) throw new Error("Input tidak valid.");
-                    
                     const monthlyRate = annualRatePercent / 100 / 12;
-                    const monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, tenorMonths)) / (Math.pow(1 + monthlyRate, tenorMonths) - 1);
+                    const monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, tenorMonths)) / ((Math.pow(1 + monthlyRate, tenorMonths)) - 1);
+                    if (!isFinite(monthlyPayment)) throw new Error("Perhitungan tidak valid, cek kembali input.");
                     
                     resultHTML = `<p>Angsuran Bulanan (Anuitas): <span class="value">${formatCurrency(monthlyPayment)}</span></p>`;
                     scheduleData = { show: true, type: 'anuitas', principal, tenorMonths, monthlyPayment, monthlyRate };
-
-                    // Siapkan rumus Anuitas
-                    formulaHTML = `
-                        <h4>Rumus Anuitas (PMT)</h4>
-                        <pre>
-P = Pokok Pinjaman
-r = Suku Bunga Bulanan (Suku Bunga Tahunan / 100 / 12)
-n = Tenor (dalam bulan)
-
-Angsuran = P * (r * (1 + r)^n) / ((1 + r)^n - 1)
-                        </pre>`;
+                    formulaHTML = `<h4>Rumus Anuitas (PMT)</h4><pre>P = Pokok Pinjaman\nr = Suku Bunga Bulanan (Bunga Tahunan / 100 / 12)\nn = Tenor (bulan)\n\nAngsuran = P * (r * (1 + r)^n) / ((1 + r)^n - 1)</pre>`;
                     break;
                 }
-                
                 case 'flat': {
                     if (isNaN(principal) || isNaN(annualRatePercent) || isNaN(tenorMonths)) throw new Error("Input tidak valid.");
                     const annualRate = annualRatePercent / 100;
                     const monthlyPrincipalPayment = principal / tenorMonths;
                     const monthlyInterestPayment = (principal * annualRate) / 12;
-                    
-                    resultHTML = `
-                        <p>Total Angsuran / Bulan: <span class="value">${formatCurrency(monthlyPrincipalPayment + monthlyInterestPayment)}</span></p>`;
+                    resultHTML = `<p>Total Angsuran / Bulan: <span class="value">${formatCurrency(monthlyPrincipalPayment + monthlyInterestPayment)}</span></p>`;
                     scheduleData = { show: true, type: 'flat', principal, tenorMonths, monthlyPrincipalPayment, monthlyInterestPayment };
-                    
-                    // Siapkan rumus Flat
-                    formulaHTML = `
-                        <h4>Rumus Bunga Flat</h4>
-                        <pre>
-Pokok / Bulan   = Pokok Pinjaman / Tenor (bulan)
-Bunga / Bulan   = (Pokok Pinjaman * Suku Bunga Tahunan) / 12
-Total Angsuran  = Pokok / Bulan + Bunga / Bulan
-                        </pre>`;
+                    formulaHTML = `<h4>Rumus Bunga Flat</h4><pre>Pokok / Bulan   = Pokok Pinjaman / Tenor (bulan)\nBunga / Bulan   = (Pokok Pinjaman * Bunga Tahunan) / 12\nTotal Angsuran  = Pokok / Bulan + Bunga / Bulan</pre>`;
                     break;
                 }
-                
                 case 'effective': {
-                    if (isNaN(annualRatePercent)) throw new Error("Input tidak valid.");
+                    if (isNaN(annualRatePercent)) throw new Error("Input Suku Bunga tidak valid.");
                     const annualRate = annualRatePercent / 100;
-                    const frequency = 12; 
+                    const frequency = 12;
                     const effectiveRate = (Math.pow(1 + (annualRate / frequency), frequency) - 1) * 100;
-
                     resultHTML = `<p>Suku Bunga Efektif (EAR): <span class="value">${effectiveRate.toFixed(2)}%</span></p>`;
-                    
-                    // Siapkan rumus Effective Rate
-                    formulaHTML = `
-                        <h4>Rumus Suku Bunga Efektif (EAR)</h4>
-                        <pre>
-r = Suku Bunga Nominal Tahunan
-n = Frekuensi Pembayaran per Tahun (umumnya 12)
-
-EAR = (1 + (r / n))^n - 1
-                        </pre>`;
+                    formulaHTML = `<h4>Rumus Suku Bunga Efektif (EAR)</h4><pre>r = Bunga Nominal Tahunan\nn = Frekuensi Pembayaran per Tahun (12)\n\nEAR = (1 + (r / n))^n - 1</pre>`;
                     break;
                 }
-
-                // ... (case hybrid kita lewati untuk rumus karena kompleks, tapi perhitungan tetap jalan)
             }
 
-            // Tampilkan hasil, tabel, dan rumus
             if (resultHTML) {
                 resultContainer.innerHTML = resultHTML;
                 resultContainer.style.display = 'block';
@@ -373,8 +325,7 @@ EAR = (1 + (r / n))^n - 1
                 formulaContainer.style.display = 'block';
             }
             if (scheduleData.show) {
-                // ... (logika generate tabel tidak berubah)
-                 let tableRowsHTML = '';
+                let tableRowsHTML = '';
                 if (scheduleData.type === 'anuitas') {
                     let outstanding = scheduleData.principal;
                     for (let i = 1; i <= scheduleData.tenorMonths; i++) {
@@ -389,13 +340,13 @@ EAR = (1 + (r / n))^n - 1
                     const installment = scheduleData.monthlyPrincipalPayment + scheduleData.monthlyInterestPayment;
                     for (let i = 1; i <= scheduleData.tenorMonths; i++) {
                         outstanding -= scheduleData.monthlyPrincipalPayment;
-                        tableRowsHTML += `<tr><td>${i}</td><td>${formatCurrency(scheduleData.monthlyPrincipalPayment)}</td><td>${formatCurrency(scheduleData.monthlyInterestPayment)}</td><td>${formatCurrency(installment)}</td><td>${formatContainerrency(outstanding < 0 ? 0 : outstanding)}</td></tr>`;
+                        // ### KESALAHAN ADA DI SINI DAN SUDAH DIPERBAIKI ###
+                        tableRowsHTML += `<tr><td>${i}</td><td>${formatCurrency(scheduleData.monthlyPrincipalPayment)}</td><td>${formatCurrency(scheduleData.monthlyInterestPayment)}</td><td>${formatCurrency(installment)}</td><td>${formatCurrency(outstanding < 0 ? 0 : outstanding)}</td></tr>`;
                     }
                 }
                 scheduleBody.innerHTML = tableRowsHTML;
                 scheduleContainer.style.display = 'block';
             }
-
         } catch (error) {
             resultContainer.innerHTML = `<p style="color:red;"><strong>Error:</strong> ${error.message}</p>`;
             resultContainer.style.display = 'block';
