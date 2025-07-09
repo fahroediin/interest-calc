@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kalkulator Pinjaman Lengkap</title>
     <style>
-        /* CSS tidak berubah, sama seperti sebelumnya */
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f4f7f9; display: flex; justify-content: center; align-items: flex-start; padding: 40px 20px; min-height: 100vh; }
         .container { background-color: #ffffff; padding: 30px 40px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.08); width: 100%; max-width: 800px; }
         h1 { text-align: center; color: #1a253c; margin-bottom: 30px; font-weight: 600; }
@@ -52,7 +51,8 @@
                     <label for="interest-type">Interest Type</label>
                     <select id="interest-type">
                         <option value="">--Select--</option>
-                        <option value="fixed">Fixed (Anuitas)</option>
+                        <option value="fixed">Fixed (Anuitas Standar)</option>
+                        <option value="fixed_custom">Fixed (Metode Khusus)</option>
                         <option value="floating">Floating (Anuitas)</option>
                         <option value="capped">Capped (Anuitas)</option>
                         <option value="flat">Flat</option>
@@ -73,7 +73,6 @@
         <div id="formula-container"></div>
     </div>
     <script>
-    // --- Elemen & Helper ---
     const form = document.getElementById('kpr-form');
     const principalInput = document.getElementById('principal');
     const interestTypeSelect = document.getElementById('interest-type');
@@ -89,7 +88,6 @@
     const formatAsMoney = (num) => new Intl.NumberFormat('id-ID').format(num);
     const formatCurrency = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
     
-    // --- Event Listeners ---
     principalInput.addEventListener('input', e => {
         let raw = e.target.value.replace(/[^0-9]/g, '');
         if (raw) e.target.value = formatAsMoney(raw);
@@ -98,7 +96,7 @@
     interestTypeSelect.addEventListener('change', () => {
         [resultContainer, scheduleContainer, formulaContainer, groupCapRate, groupHybridTenor, groupHybridRate].forEach(el => el.style.display = 'none');
         const type = interestTypeSelect.value;
-        interestLabel.textContent = 'Interest Rate (% per Tahun)'; // Reset label
+        interestLabel.textContent = 'Interest Rate (% per Tahun)';
         if (type === 'capped') groupCapRate.style.display = 'block';
         else if (type === 'hybrid') {
             [groupHybridTenor, groupHybridRate].forEach(el => el.style.display = 'block');
@@ -129,6 +127,25 @@
                     resultHTML = `<p>Angsuran Bulanan: <span class="value">${formatCurrency(monthlyPayment)}</span></p>`;
                     scheduleData = { show: true, type: 'anuitas', principal, tenorMonths, monthlyPayment, monthlyRate };
                     formulaHTML = `<h4>Rumus Anuitas (PMT)</h4><pre>P = Pokok Pinjaman\nr = Bunga Bulanan\nn = Tenor\n\nAngsuran = P * (r * (1 + r)^n) / ((1 + r)^n - 1)</pre>`;
+                    break;
+
+                case 'fixed_custom':
+                    if (isNaN(principal) || isNaN(annualRatePercent) || isNaN(tenorMonths)) throw new Error("Input tidak valid.");
+                    const annualRate = annualRatePercent / 100;
+                    const tenorYears = tenorMonths / 12;
+
+                    const numerator = principal * annualRate * tenorYears;
+                    const denominator = 1 - Math.pow(1 + annualRate, -tenorYears);
+                    const annualPayment = numerator / denominator; // Ini adalah total bayar per tahun
+                    
+                    const customMonthlyPayment = annualPayment / 12;
+
+                    if (!isFinite(customMonthlyPayment)) throw new Error("Perhitungan tidak valid.");
+
+                    resultHTML = `<p>Angsuran Bulanan: <span class="value">${formatCurrency(customMonthlyPayment)}</span></p>`;
+                    const monthlyRateForTable = annualRatePercent / 100 / 12; // Tetap pakai rate bulanan untuk tabel
+                    scheduleData = { show: true, type: 'anuitas', principal, tenorMonths, monthlyPayment: customMonthlyPayment, monthlyRate: monthlyRateForTable };
+                    formulaHTML = `<h4>Rumus Metode Khusus (Tahunan)</h4><pre>P = Pokok\nr = Bunga Tahunan\nt = Tenor (Tahun)\n\nBayar Tahunan = (P * r * t) / (1 - (1 + r)^-t)\nAngsuran Bulanan = Bayar Tahunan / 12</pre>`;
                     break;
 
                 case 'flat':
@@ -171,7 +188,6 @@
                     break;
             }
 
-            // --- Tampilkan semua hasil ---
             if (resultHTML) { resultContainer.innerHTML = resultHTML; resultContainer.style.display = 'block'; }
             if (formulaHTML) { formulaContainer.innerHTML = formulaHTML; formulaContainer.style.display = 'block'; }
             if (scheduleData.show) {
