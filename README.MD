@@ -1,13 +1,8 @@
-Tentu, ini adalah contoh file `README.md` yang baik untuk proyek kalkulator yang telah kita buat. Anda bisa menyalin teks di bawah ini dan menyimpannya sebagai file bernama `README.md` di direktori yang sama dengan file HTML Anda.
-
----
 
 # Kalkulator Simulasi Pinjaman
 
 Sebuah kalkulator pinjaman berbasis web yang dibuat dengan HTML, CSS, dan JavaScript murni (native) untuk mensimulasikan berbagai jenis skema bunga pinjaman.
 
-
-*(Tips: Ganti `https://i.imgur.com/G4hR9i7.png` dengan screenshot aplikasi Anda sendiri setelah menjalankannya)*
 
 ## Fitur Utama
 
