@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kalkulator Pinjaman Profesional</title>
+    <title>Kalkulator Pinjaman Profesional (v.Final)</title>
     <style>
+        /* CSS tidak berubah */
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f4f7f9; display: flex; justify-content: center; align-items: flex-start; padding: 40px 20px; min-height: 100vh; }
         .container { background-color: #ffffff; padding: 30px 40px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.08); width: 100%; max-width: 800px; }
         h1 { text-align: center; color: #1a253c; margin-bottom: 30px; font-weight: 600; }
@@ -95,22 +96,25 @@
     principalInput.addEventListener('input', e => { let raw = e.target.value.replace(/[^0-9]/g, ''); if (raw) e.target.value = formatAsMoney(raw); });
 
     interestTypeSelect.addEventListener('change', () => {
+        // --- BLOK YANG DIPERBAIKI ---
+        // 1. Reset semua tampilan dulu
         [resultContainer, scheduleContainer, formulaContainer, groupSpreadRate, groupCapRate, groupHybridTenor, groupHybridRate].forEach(el => el.style.display = 'none');
+        interestLabel.textContent = 'Suku Bunga (%)'; // Reset label ke default
+        
         const type = interestTypeSelect.value;
         
+        // 2. Terapkan kondisi baru
         if (type.includes('floating') || type.includes('capped')) {
             interestLabel.textContent = 'Suku Bunga Dasar/Acuan (%)';
             groupSpreadRate.style.display = 'flex';
-        } else if (type.includes('hybrid')) {
+        }
+        if (type.includes('capped')) {
+            groupCapRate.style.display = 'flex';
+        }
+        if (type.includes('hybrid')) {
             interestLabel.textContent = 'Interest Fixed (% per Tahun)';
             groupHybridTenor.style.display = 'flex';
             groupHybridRate.style.display = 'flex';
-        } else {
-             interestLabel.textContent = 'Suku Bunga (%)';
-        }
-        
-        if (type.includes('capped')) {
-            groupCapRate.style.display = 'flex';
         }
     });
 
@@ -128,10 +132,7 @@
             const tenorMonths = parseInt(document.getElementById('tenor').value);
             let resultHTML = '', formulaHTML = '', scheduleData = { show: false };
 
-            const pmt = (p, r, n) => {
-                if (r === 0) return p / n;
-                return p * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1)
-            };
+            const pmt = (p, r, n) => { if (r === 0) return p / n; return p * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1) };
             const customFormula = (p, r, t) => (p * r * t) / (1 - Math.pow(1 + r, -t));
             
             let runningRate = baseRatePercent;
@@ -144,97 +145,99 @@
 
             switch (type) {
                 // --- METODE STANDAR ---
-                case 'fixed_std':
+                case 'fixed_std': {
                     effectiveRatePercent = baseRatePercent;
-                    const monthlyRate_fs = effectiveRatePercent / 100 / 12;
-                    const monthlyPayment_fs = pmt(principal, monthlyRate_fs, tenorMonths);
-                    resultHTML = `<p>Angsuran Bulanan: <span class="value">${formatCurrency(monthlyPayment_fs)}</span></p>`;
-                    scheduleData = { show: true, type: 'anuitas', principal, tenorMonths, monthlyPayment: monthlyPayment_fs, monthlyRate: monthlyRate_fs };
+                    const monthlyRate = effectiveRatePercent / 100 / 12;
+                    const monthlyPayment = pmt(principal, monthlyRate, tenorMonths);
+                    resultHTML = `<p>Angsuran Bulanan: <span class="value">${formatCurrency(monthlyPayment)}</span></p>`;
+                    scheduleData = { show: true, type: 'anuitas', principal, tenorMonths, monthlyPayment, monthlyRate };
                     formulaHTML = `<h4>Rumus Anuitas Standar (PMT)</h4><pre>Angsuran dihitung dengan bunga tetap ${effectiveRatePercent}%.</pre>`;
                     break;
-                case 'floating_std':
+                }
+                case 'floating_std': {
                     effectiveRatePercent = runningRate;
-                    const monthlyRate_fls = effectiveRatePercent / 100 / 12;
-                    const monthlyPayment_fls = pmt(principal, monthlyRate_fls, tenorMonths);
-                    resultHTML = `<p>Angsuran Bulanan: <span class="value">${formatCurrency(monthlyPayment_fls)}</span></p><p class="note">Bunga berjalan saat ini: ${baseRatePercent}% + ${document.getElementById('spread-rate').value || 0}% = <strong>${effectiveRatePercent.toFixed(2)}%</strong></p>`;
-                    scheduleData = { show: true, type: 'anuitas', principal, tenorMonths, monthlyPayment: monthlyPayment_fls, monthlyRate: monthlyRate_fls };
+                    const monthlyRate = effectiveRatePercent / 100 / 12;
+                    const monthlyPayment = pmt(principal, monthlyRate, tenorMonths);
+                    resultHTML = `<p>Angsuran Bulanan: <span class="value">${formatCurrency(monthlyPayment)}</span></p><p class="note">Bunga berjalan saat ini: ${baseRatePercent}% + ${document.getElementById('spread-rate').value || 0}% = <strong>${effectiveRatePercent.toFixed(2)}%</strong></p>`;
+                    scheduleData = { show: true, type: 'anuitas', principal, tenorMonths, monthlyPayment, monthlyRate };
                     formulaHTML = `<h4>Rumus Floating (Anuitas)</h4><pre>Bunga Berjalan = Bunga Dasar + Spread\nAngsuran dihitung dengan PMT.</pre>`;
                     break;
-                case 'capped_std':
-                    let capRate_cs = parseFloat(document.getElementById('cap-rate').value);
-                    if (isNaN(capRate_cs)) throw new Error("Cap Rate harus diisi.");
-                    effectiveRatePercent = Math.min(runningRate, capRate_cs);
-                    let note_cs = `<p class="note">Bunga berjalan (${runningRate.toFixed(2)}%) dibatasi oleh Cap Rate (${capRate_cs}%). Bunga efektif yang dipakai: <strong>${effectiveRatePercent.toFixed(2)}%</strong>.</p>`;
-                    const monthlyRate_cs = effectiveRatePercent / 100 / 12;
-                    const monthlyPayment_cs = pmt(principal, monthlyRate_cs, tenorMonths);
-                    resultHTML = `<p>Angsuran Bulanan: <span class="value">${formatCurrency(monthlyPayment_cs)}</span></p>${note_cs}`;
-                    scheduleData = { show: true, type: 'anuitas', principal, tenorMonths, monthlyPayment: monthlyPayment_cs, monthlyRate: monthlyRate_cs };
+                }
+                case 'capped_std': {
+                    let capRate = parseFloat(document.getElementById('cap-rate').value);
+                    if (isNaN(capRate)) throw new Error("Cap Rate harus diisi.");
+                    effectiveRatePercent = Math.min(runningRate, capRate);
+                    let note = `<p class="note">Bunga berjalan (${runningRate.toFixed(2)}%) dibatasi oleh Cap Rate (${capRate}%). Bunga efektif yang dipakai: <strong>${effectiveRatePercent.toFixed(2)}%</strong>.</p>`;
+                    const monthlyRate = effectiveRatePercent / 100 / 12;
+                    const monthlyPayment = pmt(principal, monthlyRate, tenorMonths);
+                    resultHTML = `<p>Angsuran Bulanan: <span class="value">${formatCurrency(monthlyPayment)}</span></p>${note}`;
+                    scheduleData = { show: true, type: 'anuitas', principal, tenorMonths, monthlyPayment, monthlyRate };
                     formulaHTML = `<h4>Logika Capped Rate (Anuitas)</h4><pre>1. Bunga Berjalan = Bunga Dasar + Spread.\n2. Bunga Efektif = MIN(Bunga Berjalan, Cap Rate).\n3. Hitung angsuran (PMT) dengan Bunga Efektif.</pre>`;
                     break;
-                case 'hybrid_std':
-                    const fixedTenor_hs = parseInt(document.getElementById('fixed-tenor').value);
-                    const floatingRate_hs = parseFloat(document.getElementById('floating-rate').value);
-                    if ([fixedTenor_hs, floatingRate_hs].some(isNaN)) throw new Error("Input Hybrid tidak valid.");
-                    const monthlyFixedRate_hs = baseRatePercent / 100 / 12;
-                    const fixedPayment_hs = pmt(principal, monthlyFixedRate_hs, tenorMonths);
-                    let remainingPrincipal_hs = principal;
-                    for (let i = 0; i < fixedTenor_hs; i++) {
-                        remainingPrincipal_hs -= (fixedPayment_hs - (remainingPrincipal_hs * monthlyFixedRate_hs));
-                    }
-                    const remainingMonths_hs = tenorMonths - fixedTenor_hs;
-                    const floatingPayment_hs = pmt(remainingPrincipal_hs, floatingRate_hs / 100 / 12, remainingMonths_hs);
-                    resultHTML = `<p>Angsuran Fixed: <span class="value">${formatCurrency(fixedPayment_hs)}</span></p><p>Angsuran Floating: <span class="value">${formatCurrency(floatingPayment_hs)}</span></p>`;
-                    scheduleData = { show: true, type: 'hybrid', principal, tenorMonths, fixedTenor: fixedTenor_hs, monthlyFixedRate: monthlyFixedRate_hs, fixedPayment: fixedPayment_hs, monthlyFloatingRate: (floatingRate_hs / 100) / 12, floatingPayment: floatingPayment_hs };
+                }
+                case 'hybrid_std': {
+                    const fixedTenor = parseInt(document.getElementById('fixed-tenor').value);
+                    const floatingRate = parseFloat(document.getElementById('floating-rate').value);
+                    if ([fixedTenor, floatingRate].some(isNaN)) throw new Error("Input Hybrid tidak valid.");
+                    const monthlyFixedRate = baseRatePercent / 100 / 12;
+                    const fixedPayment = pmt(principal, monthlyFixedRate, tenorMonths);
+                    let remainingPrincipal = principal;
+                    for (let i = 0; i < fixedTenor; i++) { remainingPrincipal -= (fixedPayment - (remainingPrincipal * monthlyFixedRate)); }
+                    const remainingMonths = tenorMonths - fixedTenor;
+                    const floatingPayment = pmt(remainingPrincipal, floatingRate / 100 / 12, remainingMonths);
+                    resultHTML = `<p>Angsuran Fixed: <span class="value">${formatCurrency(fixedPayment)}</span></p><p>Angsuran Floating: <span class="value">${formatCurrency(floatingPayment)}</span></p>`;
+                    scheduleData = { show: true, type: 'hybrid', principal, tenorMonths, fixedTenor, monthlyFixedRate, fixedPayment, monthlyFloatingRate: (floatingRate / 100) / 12, floatingPayment };
                     formulaHTML = `<h4>Logika Hybrid Anuitas</h4><pre>Kalkulasi menggunakan PMT standar.</pre>`;
                     break;
-
+                }
                 // --- METODE KHUSUS ---
-                case 'fixed_custom':
+                case 'fixed_custom': {
                     effectiveRatePercent = baseRatePercent;
-                    const totalRepayment_fc = customFormula(principal, effectiveRatePercent / 100, tenorMonths / 12);
-                    const monthlyPayment_fc = totalRepayment_fc / tenorMonths;
-                    resultHTML = `<p>Angsuran Bulanan: <span class="value">${formatCurrency(monthlyPayment_fc)}</span></p>`;
-                    scheduleData = { show: true, type: 'anuitas', principal, tenorMonths, monthlyPayment: monthlyPayment_fc, monthlyRate: (effectiveRatePercent / 100) / 12 };
+                    const totalRepayment = customFormula(principal, effectiveRatePercent / 100, tenorMonths / 12);
+                    const monthlyPayment = totalRepayment / tenorMonths;
+                    resultHTML = `<p>Angsuran Bulanan: <span class="value">${formatCurrency(monthlyPayment)}</span></p>`;
+                    scheduleData = { show: true, type: 'anuitas', principal, tenorMonths, monthlyPayment, monthlyRate: (effectiveRatePercent / 100) / 12 };
                     formulaHTML = `<h4>Rumus Metode Khusus</h4><pre>Menggunakan rumus tahunan dari use case.</pre>`;
                     break;
-                case 'floating_custom':
+                }
+                case 'floating_custom': {
                     effectiveRatePercent = runningRate;
-                    const totalRepayment_flc = customFormula(principal, effectiveRatePercent / 100, tenorMonths / 12);
-                    const monthlyPayment_flc = totalRepayment_flc / tenorMonths;
-                    resultHTML = `<p>Angsuran Bulanan: <span class="value">${formatCurrency(monthlyPayment_flc)}</span></p><p class="note">Bunga berjalan saat ini: ${baseRatePercent}% + ${document.getElementById('spread-rate').value || 0}% = <strong>${effectiveRatePercent.toFixed(2)}%</strong></p>`;
-                    scheduleData = { show: true, type: 'anuitas', principal, tenorMonths, monthlyPayment: monthlyPayment_flc, monthlyRate: (effectiveRatePercent/100)/12 };
+                    const totalRepayment = customFormula(principal, effectiveRatePercent / 100, tenorMonths / 12);
+                    const monthlyPayment = totalRepayment / tenorMonths;
+                    resultHTML = `<p>Angsuran Bulanan: <span class="value">${formatCurrency(monthlyPayment)}</span></p><p class="note">Bunga berjalan saat ini: ${baseRatePercent}% + ${document.getElementById('spread-rate').value || 0}% = <strong>${effectiveRatePercent.toFixed(2)}%</strong></p>`;
+                    scheduleData = { show: true, type: 'anuitas', principal, tenorMonths, monthlyPayment, monthlyRate: (effectiveRatePercent/100)/12 };
                     formulaHTML = `<h4>Rumus Floating (Khusus)</h4><pre>Bunga Berjalan = Bunga Dasar + Spread\nAngsuran dihitung dgn rumus khusus.</pre>`;
                     break;
-                case 'capped_custom':
-                    let capRate_cc = parseFloat(document.getElementById('cap-rate').value);
-                    if (isNaN(capRate_cc)) throw new Error("Cap Rate harus diisi.");
-                    effectiveRatePercent = Math.min(runningRate, capRate_cc);
-                    let note_cc = `<p class="note">Bunga berjalan (${runningRate.toFixed(2)}%) dibatasi oleh Cap Rate (${capRate_cc}%). Bunga efektif yang dipakai: <strong>${effectiveRatePercent.toFixed(2)}%</strong>.</p>`;
-                    const totalRepayment_cc = customFormula(principal, effectiveRatePercent / 100, tenorMonths / 12);
-                    const monthlyPayment_cc = totalRepayment_cc / tenorMonths;
-                    resultHTML = `<p>Angsuran Bulanan: <span class="value">${formatCurrency(monthlyPayment_cc)}</span></p>${note_cc}`;
-                    scheduleData = { show: true, type: 'anuitas', principal, tenorMonths, monthlyPayment: monthlyPayment_cc, monthlyRate: (effectiveRatePercent/100)/12 };
+                }
+                case 'capped_custom': {
+                    let capRate = parseFloat(document.getElementById('cap-rate').value);
+                    if (isNaN(capRate)) throw new Error("Cap Rate harus diisi.");
+                    effectiveRatePercent = Math.min(runningRate, capRate);
+                    let note = `<p class="note">Bunga berjalan (${runningRate.toFixed(2)}%) dibatasi oleh Cap Rate (${capRate}%). Bunga efektif yang dipakai: <strong>${effectiveRatePercent.toFixed(2)}%</strong>.</p>`;
+                    const totalRepayment = customFormula(principal, effectiveRatePercent / 100, tenorMonths / 12);
+                    const monthlyPayment = totalRepayment / tenorMonths;
+                    resultHTML = `<p>Angsuran Bulanan: <span class="value">${formatCurrency(monthlyPayment)}</span></p>${note}`;
+                    scheduleData = { show: true, type: 'anuitas', principal, tenorMonths, monthlyPayment, monthlyRate: (effectiveRatePercent/100)/12 };
                     formulaHTML = `<h4>Logika Capped Rate (Khusus)</h4><pre>1. Bunga Efektif = MIN(Bunga Berjalan, Cap Rate).\n2. Hitung angsuran dgn rumus khusus.</pre>`;
                     break;
-                case 'hybrid_custom':
-                    const fixedTenor_hc = parseInt(document.getElementById('fixed-tenor').value);
-                    const floatingRate_hc = parseFloat(document.getElementById('floating-rate').value);
-                    if ([fixedTenor_hc, floatingRate_hc].some(isNaN)) throw new Error("Input Hybrid tidak valid.");
-                    const fixedTotalRepayment_hc = customFormula(principal, baseRatePercent/100, tenorMonths/12);
-                    const fixedPayment_hc = fixedTotalRepayment_hc / tenorMonths;
-                    let remainingPrincipal_hc = principal;
-                    const monthlyFixedRateForSim_hc = baseRatePercent / 100 / 12;
-                    for (let i = 0; i < fixedTenor_hc; i++) {
-                        remainingPrincipal_hc -= (fixedPayment_hc - (remainingPrincipal_hc * monthlyFixedRateForSim_hc));
-                    }
-                    const remainingMonths_hc = tenorMonths - fixedTenor_hc;
-                    const floatingTotalRepayment_hc = customFormula(remainingPrincipal_hc, floatingRate_hc/100, remainingMonths_hc/12);
-                    const floatingPayment_hc = floatingTotalRepayment_hc / remainingMonths_hc;
-                    resultHTML = `<p>Angsuran Fixed: <span class="value">${formatCurrency(fixedPayment_hc)}</span></p><p>Angsuran Floating: <span class="value">${formatCurrency(floatingPayment_hc)}</span></p>`;
-                    scheduleData = { show: true, type: 'hybrid', principal, tenorMonths, fixedTenor: fixedTenor_hc, monthlyFixedRate: monthlyFixedRateForSim_hc, fixedPayment: fixedPayment_hc, monthlyFloatingRate: (floatingRate_hc / 100) / 12, floatingPayment: floatingPayment_hc };
+                }
+                case 'hybrid_custom': {
+                    const fixedTenor = parseInt(document.getElementById('fixed-tenor').value);
+                    const floatingRate = parseFloat(document.getElementById('floating-rate').value);
+                    if ([fixedTenor, floatingRate].some(isNaN)) throw new Error("Input Hybrid tidak valid.");
+                    const fixedTotalRepayment = customFormula(principal, baseRatePercent/100, tenorMonths/12);
+                    const fixedPayment = fixedTotalRepayment / tenorMonths;
+                    let remainingPrincipal = principal;
+                    const monthlyFixedRateForSim = baseRatePercent / 100 / 12;
+                    for (let i = 0; i < fixedTenor; i++) { remainingPrincipal -= (fixedPayment - (remainingPrincipal * monthlyFixedRateForSim)); }
+                    const remainingMonths = tenorMonths - fixedTenor;
+                    const floatingTotalRepayment = customFormula(remainingPrincipal, floatingRate/100, remainingMonths/12);
+                    const floatingPayment = floatingTotalRepayment / remainingMonths;
+                    resultHTML = `<p>Angsuran Fixed: <span class="value">${formatCurrency(fixedPayment)}</span></p><p>Angsuran Floating: <span class="value">${formatCurrency(floatingPayment)}</span></p>`;
+                    scheduleData = { show: true, type: 'hybrid', principal, tenorMonths, fixedTenor, monthlyFixedRate: monthlyFixedRateForSim, fixedPayment, monthlyFloatingRate: (floatingRate / 100) / 12, floatingPayment };
                     formulaHTML = `<h4>Logika Hybrid (Khusus)</h4><pre>Angsuran dihitung pakai rumus khusus, tapi simulasi sisa pokok pakai anuitas standar.</pre>`;
                     break;
-
+                }
                 // --- METODE LAINNYA ---
                 case 'flat':
                     effectiveRatePercent = baseRatePercent;
@@ -261,24 +264,15 @@
                         let currentRate, currentPayment, highlightClass = '';
                         if (scheduleData.type === 'hybrid') {
                             if (i <= scheduleData.fixedTenor) {
-                                currentRate = scheduleData.monthlyFixedRate;
-                                currentPayment = scheduleData.fixedPayment;
+                                currentRate = scheduleData.monthlyFixedRate; currentPayment = scheduleData.fixedPayment;
                                 if (i === 1 || i === scheduleData.fixedTenor) highlightClass = 'highlight';
                             } else {
-                                currentRate = scheduleData.monthlyFloatingRate;
-                                currentPayment = scheduleData.floatingPayment;
+                                currentRate = scheduleData.monthlyFloatingRate; currentPayment = scheduleData.floatingPayment;
                                 if (i === scheduleData.fixedTenor + 1) highlightClass = 'highlight';
                             }
-                        } else {
-                            currentRate = scheduleData.monthlyRate;
-                            currentPayment = scheduleData.monthlyPayment;
-                        }
-                        const interestPart = outstanding * currentRate;
-                        let principalPart = currentPayment - interestPart;
-                        if (i === scheduleData.tenorMonths) {
-                            principalPart = outstanding;
-                            currentPayment = principalPart + interestPart;
-                        }
+                        } else { currentRate = scheduleData.monthlyRate; currentPayment = scheduleData.monthlyPayment; }
+                        const interestPart = outstanding * currentRate; let principalPart = currentPayment - interestPart;
+                        if (i === scheduleData.tenorMonths) { principalPart = outstanding; currentPayment = principalPart + interestPart; }
                         outstanding -= principalPart;
                         tableHTML += `<tr class="${highlightClass}"><td>${i}</td><td>${formatCurrency(principalPart)}</td><td>${formatCurrency(interestPart)}</td><td>${formatCurrency(currentPayment)}</td><td>${formatCurrency(Math.max(0, outstanding))}</td></tr>`;
                     }
