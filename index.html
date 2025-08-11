@@ -112,7 +112,6 @@
     <footer>Dibuat oleh Fahrudin</footer>
 
     <script>
-    // ### BAGIAN INI TELAH DIPERBAIKI ###
     const form = document.getElementById('kpr-form');
     const principalInput = document.getElementById('principal');
     const interestTypeSelect = document.getElementById('interest-type');
@@ -131,10 +130,11 @@
     
     principalInput.addEventListener('input', e => { let raw = e.target.value.replace(/[^0-9]/g, ''); if (raw) e.target.value = formatAsMoney(raw); });
 
+    // ### BAGIAN INI TELAH DIPERBAIKI ###
     interestTypeSelect.addEventListener('change', () => {
-        // Sembunyikan semua hasil dan field tambahan
+        // Sembunyikan semua hasil dan field tambahan dengan class 'hidden'
         [resultContainer, scheduleContainer, formulaContainer, groupSpreadRate, groupCapRate, groupHybridTenor, groupHybridRate].forEach(el => {
-            el.classList.add('hidden'); // Gunakan class 'hidden'
+            el.classList.add('hidden');
         });
         interestLabel.textContent = 'Suku Bunga (%)'; // Reset label
         
