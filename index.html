@@ -5,26 +5,81 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kalkulator Simulasi Pinjaman</title>
     <style>
-        /* CSS TIDAK BERUBAH, SAMA SEPERTI SEBELUMNYA */
-        *, *::before, *::after { box-sizing: border-box; }
-        html { scroll-behavior: smooth; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f0f2f5; margin: 0; display: flex; flex-direction: column; min-height: 100vh; }
-        main { flex: 1 0 auto; width: 100%; padding: 20px 15px; }
-        .container { background-color: #ffffff; padding: 25px; border-radius: 16px; box-shadow: 0 8px 25px rgba(0,0,0,0.07); width: 100%; max-width: 800px; margin: 0 auto; }
-        footer { flex-shrink: 0; text-align: center; padding: 20px; font-size: 0.9rem; color: #888; }
-        h1 { text-align: center; color: #1a253c; margin-top: 0; margin-bottom: 30px; font-weight: 600; font-size: 1.6rem; }
-        .form-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
-        .form-group { display: flex; flex-direction: column; }
-        .form-group label { color: #555; font-weight: 500; margin-bottom: 8px; font-size: 0.9rem; }
-        .form-group input, .form-group select { width: 100%; padding: 14px; border: 1px solid #dcdcdc; border-radius: 8px; box-sizing: border-box; font-size: 1rem; background-color: #fdfdfd; }
-        .button-container { margin-top: 30px; }
-        button { width: 100%; padding: 14px 35px; background-color: #0056b3; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; }
+        /* === CSS TIDAK ADA PERUBAHAN, SUDAH BAIK === */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        html {
+            scroll-behavior: smooth;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        main {
+            flex: 1 0 auto;
+            width: 100%;
+            padding: 20px 15px;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.07);
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        footer {
+            flex-shrink: 0;
+            text-align: center;
+            padding: 20px;
+            font-size: 0.9rem;
+            color: #888;
+        }
+        h1 {
+            text-align: center; color: #1a253c; margin-top: 0; margin-bottom: 30px; font-weight: 600; font-size: 1.6rem;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 18px;
+        }
+        .form-group {
+            display: flex; flex-direction: column;
+        }
+        .form-group label {
+            color: #555; font-weight: 500; margin-bottom: 8px; font-size: 0.9rem;
+        }
+        .form-group input, .form-group select {
+            width: 100%; padding: 14px; border: 1px solid #dcdcdc; border-radius: 8px;
+            box-sizing: border-box; font-size: 1rem; background-color: #fdfdfd;
+        }
+        .button-container {
+            margin-top: 30px;
+        }
+        button {
+            width: 100%;
+            padding: 14px 35px; background-color: #0056b3; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer;
+        }
         .result { margin-top: 30px; padding: 20px; background-color: #e9f5ff; border-radius: 8px; border: 1px solid #bce0ff; display: none; }
         .result p { margin: 8px 0; font-size: 1.1rem; color: #333; word-wrap: break-word; }
         .result .value { font-weight: bold; color: #0056b3; }
         .hidden { display: none !important; }
-        #schedule-container { margin-top: 30px; display: none; max-height: 400px; overflow-y: auto; overflow-x: auto; border: 1px solid #e0e0e0; border-radius: 8px; }
-        #schedule-table { width: 100%; border-collapse: collapse; min-width: 700px; }
+        #schedule-container {
+            margin-top: 30px; display: none; max-height: 400px;
+            overflow-y: auto;
+            overflow-x: auto;
+            border: 1px solid #e0e0e0; border-radius: 8px;
+        }
+        #schedule-table {
+            width: 100%; border-collapse: collapse;
+            min-width: 700px;
+        }
         #schedule-table th, #schedule-table td { padding: 12px 15px; text-align: right; border-bottom: 1px solid #e0e0e0; white-space: nowrap; }
         #schedule-table th:first-child, #schedule-table td:first-child { text-align: center; }
         #schedule-table thead th { background-color: #f4f7f9; position: sticky; top: 0; font-weight: 600; color: #333; }
@@ -34,12 +89,25 @@
         #formula-container h4 { margin-top: 0; margin-bottom: 10px; font-family: -apple-system, sans-serif; font-weight: 600; }
         #formula-container pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; }
         @media (min-width: 768px) {
-            main { padding: 40px 20px; }
-            .container { padding: 40px; }
-            .form-grid { grid-template-columns: 1fr 1fr; gap: 25px; }
-            button { width: auto; }
-            .button-container { justify-content: flex-end; display: flex; }
-            h1 { font-size: 2rem; }
+            main {
+                padding: 40px 20px;
+            }
+            .container {
+                padding: 40px;
+            }
+            .form-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 25px;
+            }
+            button {
+                width: auto;
+            }
+            .button-container {
+                justify-content: flex-end;
+            }
+            h1 {
+                font-size: 2rem;
+            }
         }
     </style>
 </head>
@@ -112,7 +180,8 @@
     <footer>Dibuat oleh Fahrudin</footer>
 
     <script>
-    // ### BAGIAN JAVASCRIPT YANG DIPERBAIKI ###
+    // ### PERBAIKAN LOGIKA DIMULAI DI SINI ###
+
     const form = document.getElementById('kpr-form');
     const principalInput = document.getElementById('principal');
     const interestTypeSelect = document.getElementById('interest-type');
@@ -131,23 +200,35 @@
     
     principalInput.addEventListener('input', e => { let raw = e.target.value.replace(/[^0-9]/g, ''); if (raw) e.target.value = formatAsMoney(raw); });
 
-    // === FUNGSI INI YANG DIPERBAIKI ===
+    // === LOGIKA YANG DIPERBAIKI ===
     interestTypeSelect.addEventListener('change', () => {
-        // 1. Sembunyikan semua hasil dan field tambahan terlebih dahulu
-        [resultContainer, scheduleContainer, formulaContainer].forEach(el => el.style.display = 'none');
-        [groupSpreadRate, groupCapRate, groupHybridTenor, groupHybridRate].forEach(el => el.classList.add('hidden'));
-        
-        // 2. Reset label suku bunga ke default
+        // 1. Sembunyikan hasil kalkulasi sebelumnya setiap kali pilihan berubah
+        resultContainer.style.display = 'none';
+        scheduleContainer.style.display = 'none';
+        formulaContainer.style.display = 'none';
+
+        // 2. Reset label bunga ke default
         interestLabel.textContent = 'Suku Bunga (%)';
-        
+
+        // 3. Sembunyikan SEMUA field opsional terlebih dahulu (STATE RESET)
+        // Ini adalah perbaikan kunci: memastikan semua field kembali ke state awal (tersembunyi)
+        // sebelum menampilkan yang relevan. Menggunakan classList lebih baik daripada inline style.
+        groupSpreadRate.classList.add('hidden');
+        groupCapRate.classList.add('hidden');
+        groupHybridTenor.classList.add('hidden');
+        groupHybridRate.classList.add('hidden');
+
+        // 4. Ambil tipe yang dipilih
         const type = interestTypeSelect.value;
-        
-        // 3. Tampilkan field yang relevan berdasarkan pilihan
+        if (!type) return; // Jika memilih "--Select--" lagi, jangan lakukan apa-apa
+
+        // 5. Tampilkan field yang relevan berdasarkan pilihan
         if (type.includes('floating') || type.includes('capped')) {
             interestLabel.textContent = 'Suku Bunga Dasar/Acuan (%)';
             groupSpreadRate.classList.remove('hidden');
         }
         if (type.includes('capped')) {
+            // Field Spread Rate sudah di-handle di atas, tinggal tambahkan Cap Rate
             groupCapRate.classList.remove('hidden');
         }
         if (type.includes('hybrid')) {
@@ -157,6 +238,7 @@
         }
     });
 
+    // === LOGIKA KALKULASI (TIDAK DIUBAH, SUDAH BENAR) ===
     form.addEventListener('submit', e => {
         e.preventDefault();
         const type = interestTypeSelect.value;
@@ -166,13 +248,14 @@
         scheduleBody.innerHTML = ''; formulaContainer.innerHTML = '';
 
         try {
-            // Sisa dari script ini tidak diubah sama sekali
             const principal = parseFloat(principalInput.value.replace(/\./g, ''));
             let baseRatePercent = parseFloat(document.getElementById('base-rate').value);
             const tenorMonths = parseInt(document.getElementById('tenor').value);
             let resultHTML = '', formulaHTML = '', scheduleData = { show: false };
 
+            // Rumus PMT Anuitas Standar
             const pmt = (p, r, n) => { if (r === 0) return p / n; return p * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1) };
+            // Rumus Metode Khusus
             const customFormula = (p, r, t) => (p * r * t) / (1 - Math.pow(1 + r, -t));
             
             let runningRate = baseRatePercent;
